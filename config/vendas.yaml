@@ -1,0 +1,317 @@
+# Configuração Simplificada para Forecasting
+# Foca nos parâmetros essenciais com valores otimizados
+
+# Configurações do modelo
+model:
+  objective: 'regression'
+  metric: 'rmse'
+  boosting_type: 'gbdt'
+  lags: 56                      # 8 semanas de histórico
+  # Candidatos de lags para seleção automática (opcional)
+  lag_candidates: [7, 14, 28, 56]
+  forecast_horizon: [30, 60, 90]          # 30 dias de previsão
+  quantiles: [0.1, 0.5, 0.9]    # Intervalos de confiança
+  random_state: 42
+  
+  # Parâmetros LightGBM otimizados para dados de vendas
+  n_estimators: 500             # Mais árvores para dados univariados
+  num_leaves: 63                # Mais folhas para capturar padrões complexos
+  learning_rate: 0.08           # Taxa menor para melhor precisão
+  max_depth: -1                 # Sem limitação de profundidade
+  min_data_in_leaf: 50          # Mínimo de dados por folha
+  feature_fraction: 0.9         # 90% das features por árvore
+  bagging_fraction: 0.9         # 90% dos dados por árvore
+  bagging_freq: 5               # Frequência do bagging
+  force_col_wise: true          # Remove overhead de teste automático
+  verbose: -1
+  num_threads: -1        # Usar todos os cores
+  max_bin: 255          # Melhor precisão
+  min_data_in_bin: 3    # Bins mais granulares
+  lambda_l1: 0.05      # Regularização L1 (menor para MAPE baixo)
+  lambda_l2: 0.05      # Regularização L2 (menor para MAPE baixo)
+  min_gain_to_split: 0.05 # Evitar overfitting (menor para MAPE baixo)
+  
+  # Lista de modelos para comparação (usado pela compare_models)
+  # Pode ser uma lista de strings ou de dicts com params
+  # Ex.: ["lightgbm", "autoarima", "ets", "theta", "nhits"]
+  model_list:
+    - "lightgbm"
+    - "autoarima"
+    - "ets"
+    - "theta"
+    - "nhits"
+    - "nbeats"
+    - "tft"
+
+  # Métrica de seleção do melhor modelo: MAPE | RMSE | R2
+  selection_metric: "MAPE"
+
+  # Habilitar/desabilitar a comparação de modelos (usa model_list quando true)
+  compare_models_enabled: false
+
+  # Horizonte de validação usado no backtest de comparação
+  validation_horizon: 30
+
+  # Re-treinar a cada passo no backtest de comparação (mais lento, mais robusto)
+  retrain_during_backtest: false
+  
+  adaptive_parameters:
+    # Parâmetros padrão (mesmos valores atuais)
+    default_params:  # MAPE ≤ 10%
+      objective: 'regression'  # Mais robusto a outliers
+      metric: 'rmse'
+      boosting_type: 'gbdt'
+      lags: 56
+      n_estimators: 500
+      learning_rate: 0.08
+      num_leaves: 63
+      feature_fraction: 0.9
+      bagging_fraction: 0.9
+      bagging_freq: 5
+      max_depth: -1
+      min_data_in_leaf: 50
+      force_col_wise: true
+      verbose: -1
+      num_threads: -1        # Usar todos os cores
+      max_bin: 255          # Melhor precisão
+      min_data_in_bin: 3    # Bins mais granulares
+      lambda_l1: 0.05      # Regularização L1 (menor para MAPE baixo)
+      lambda_l2: 0.05      # Regularização L2 (menor para MAPE baixo)
+      min_gain_to_split: 0.05 # Evitar overfitting (menor para MAPE baixo)
+
+    # Parâmetros moderados para 10% < MAPE ≤ 15%
+    moderate_params:
+      objective: 'regression'
+      metric: 'rmse'
+      boosting_type: 'gbdt'
+      lags: 56
+      n_estimators: 800
+      learning_rate: 0.06
+      num_leaves: 72
+      feature_fraction: 0.80
+      bagging_fraction: 0.80
+      bagging_freq: 5
+      max_depth: -1
+      min_data_in_leaf: 80
+      force_col_wise: true
+      verbose: -1
+      num_threads: -1
+      max_bin: 255
+      min_data_in_bin: 3
+      lambda_l1: 0.15
+      lambda_l2: 0.15
+      min_gain_to_split: 0.15
+
+    # Parâmetros agressivos para 15% < MAPE ≤ 20%
+    aggressive_params:
+      objective: 'regression'
+      metric: 'rmse'
+      boosting_type: 'gbdt'
+      lags: 56
+      n_estimators: 1000
+      learning_rate: 0.05
+      num_leaves: 64
+      feature_fraction: 0.75
+      bagging_fraction: 0.75
+      bagging_freq: 5
+      max_depth: -1
+      min_data_in_leaf: 110
+      force_col_wise: true
+      verbose: -1
+      num_threads: -1
+      max_bin: 255
+      min_data_in_bin: 3
+      lambda_l1: 0.25
+      lambda_l2: 0.25
+      min_gain_to_split: 0.25
+
+    # Parâmetros extremos para MAPE > 20%
+    extreme_params:
+      objective: 'regression'
+      metric: 'rmse'
+      boosting_type: 'gbdt'
+      lags: 56
+      n_estimators: 1200
+      learning_rate: 0.05
+      num_leaves: 64
+      feature_fraction: 0.75
+      bagging_fraction: 0.75
+      bagging_freq: 5
+      max_depth: -1
+      min_data_in_leaf: 90
+      force_col_wise: true
+      verbose: -1
+      num_threads: -1
+      max_bin: 255
+      min_data_in_bin: 3
+      lambda_l1: 0.1
+      lambda_l2: 0.1
+      min_gain_to_split: 0.1
+
+
+# Pré-processamento específico para vendas
+preprocessing:
+  fill_missing: true            # Preencher valores ausentes
+  scale_data: true              # Normalizar dados
+  log_transform: true           # Importante para dados monetários
+  detect_anomalies: true        # Detectar outliers
+  anomaly_threshold: 3.0        # Z-score para detecção (3 desvios)
+
+# Configurações de validação
+backtest:
+  start: 0.75                   # 75% treino, 25% teste
+  stride: 1                     # Stride para backtest
+  # Seleção automática de lags via backtest leve
+  lag_selection:
+    enabled: true
+    stride: 7
+    validation_horizon: 30
+
+# Covariáveis temporais para vendas
+covariates:
+  time_attributes:
+    - dayofweek                 # Dia da semana (0-6, Segunda=0)
+    - month                     # Mês (1-12)
+    - quarter                   # Trimestre (1-4)
+    - dayofyear                 # Dia do ano (1-365)
+    - weekofyear                # Semana do ano (1-52)
+    - is_month_end              # Flag fim do mês
+    - is_month_start            # Flag início do mês
+    - is_quarter_end            # Flag fim do trimestre
+    - is_quarter_start          # Flag início do trimestre
+    - is_year_end               # Flag fim do ano
+    - is_year_start             # Flag início do ano
+    - day                       # Dia do mês (1-31)
+    - is_weekend                # Flag fim de semana (pode derivar de dayofweek)
+
+# Configurações de HPO (opcional)
+hyperparameter_optimization:
+  enabled: false
+  trials: 50
+  param_space:
+    lags: [28, 56, 84]
+    learning_rate: [0.05, 0.1, 0.15]
+    n_estimators: [300, 500, 800]
+    num_leaves: [31, 63, 127]
+
+# Classificação de clientes (simplificada)
+client_types:
+  manufacturing:
+    - "005ATS_ERP_BI"
+    - "012CATTO_ERP_BI" 
+    - "014CST_IJC_BI"
+    - "013CRO_ERP_BI"
+    - "012DIPUA_ERP_BI"
+    - "005RG_ERP_BI"
+  
+  non_manufacturing:
+    - "012ARR_ERP_BI"
+    - "007BE_ERP_BI"
+    - "014CST_ERP_BI"
+    - "006GF_BI"
+    - "008GT_BI"
+    - "005NO_ERP_BI"
+    - "014PR_ERP_BI"
+    - "001RR_BI"
+    - "014ZI_ERP_BI"
+
+# Configurações específicas por tipo (se necessário)
+type_specific_configs:
+  manufacturing:
+    model:
+      lags: 84  # Maior janela para padrões de produção
+  non_manufacturing:
+    model:
+      lags: 56  # Janela padrão para comércio/serviços
+
+# Configurações específicas para processamento de vendas
+sales_processing:
+  min_non_zero_ratio: 0.3       # Mínimo 30% de dias com vendas > 0
+  outlier_cap_percentile: 99    # Limitar outliers no percentil 99
+  seasonal_check_periods: [7, 30, 90]  # Verificar sazonalidade semanal, mensal, trimestral
+
+# Configurações de qualidade dos dados
+data_quality:
+  min_days_history: 180         # Mínimo 6 meses de histórico
+  max_zero_consecutive: 30      # Máximo 30 dias consecutivos sem vendas
+  min_daily_variance: 0.01      # Variância mínima para evitar série constante
+
+# Configurações de performance
+performance:
+  use_gpu: false                # GPU acceleration (se disponível)
+  n_jobs: -1                    # Usar todos os cores disponíveis
+  early_stopping_rounds: 50     # Parar se não houver melhora
+
+# Configurações de otimização automática
+optimization:
+  enable_auto_optimization: false  # Desabilitar otimização automática temporariamente
+  mape_threshold: 15.0             # Limite de MAPE para acionar otimização
+  
+# Configurações de saída
+output:
+  include_confidence_intervals: true   # Incluir intervalos de confiança
+  save_model_importance: true          # Salvar importância das features
+  create_detailed_plots: true          # Criar gráficos detalhados
+  export_format: ['csv']      # Formatos de exportação
+
+  # Configurações específicas de FTP
+  local_backup: true                   # Manter cópia local mesmo com FTP
+  ftp_retry_attempts: 3                # Tentativas de reenvio em caso de erro
+
+# Configurações de alertas e limites
+alerts:
+  low_accuracy_threshold: 0.3    # MAPE > 30% gera alerta
+  high_bias_threshold: 0.2       # Bias > 20% gera alerta
+  low_r2_threshold: 0.5          # R² < 0.5 gera alerta
+
+# Configurações avançadas por tipo de cliente
+client_specific:
+  manufacturing:
+    model:
+      lags: 84                   # Mais histórico para indústria
+      seasonal_periods: [7, 30, 90, 365]  # Incluir sazonalidade anual
+  
+  retail:
+    model:
+      lags: 42                   # Menos histórico para varejo
+      learning_rate: 0.1         # Taxa maior para adaptação rápida
+    
+    sales_processing:
+      min_non_zero_ratio: 0.5    # Esperar mais atividade no varejo
+  
+  services:
+    model:
+      lags: 28                   # Histórico menor para serviços
+      n_estimators: 300          # Menos complexidade
+
+# *** NOVA SEÇÃO: Configurações de Upload FTP ***
+ftp_upload:
+  enabled: true                 # Habilitar upload automático para FTP
+  on_error: 'continue'          # Comportamento em caso de erro FTP:
+                               # 'continue' - continua pipeline mesmo com erro FTP
+                               # 'stop' - para execução se FTP falhar
+  
+  # Configurações avançadas (opcionais)
+  server_config:               # Configurações do servidor FTP (opcional)
+    host: "192.168.49.30"      # Host do servidor SFTP
+    port: 8887                 # Porta do servidor SFTP
+    username: "sftp_ia01"      # Usuário SFTP
+    # Senha definida no código por segurança
+    
+  upload_structure:            # Estrutura de diretórios no FTP
+    base_path: "ai"            # Pasta base no FTP
+    # Estrutura final será: ai/{database_name}/vendas/
+    
+  files_to_upload:             # Arquivos que serão enviados
+    - "metricas_vendas.csv"    # Métricas de performance
+    - "previsoes_vendas.csv"   # Previsões do modelo
+    - "vendas_historicas.csv"  # Dados históricos
+    # Gráficos PNG não são enviados por padrão
+# *** NOVA SEÇÃO: Configurações de Extração de Dados ***
+extraction:
+  default_days_back: 730          # Padrão: 2 anos de histórico
+  separator: ';'                  # Separador do CSV
+  encoding: 'utf-8'               # Encoding dos arquivos
+
+# *** NOVA SEÇÃO: Configurações Adaptativas de Parâmetros ***
+

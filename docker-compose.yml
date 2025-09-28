@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  forecasting-pipeline:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: forecasting-ml-pipeline
+    restart: unless-stopped
+    working_dir: /app
+    
+    # Environment variables (can override .env file)
+    environment:
+      - PYTHONUNBUFFERED=1
+      - CONTAINER=true
+      
+    # Volume mounts for persistent data
+    volumes:
+      # Persist datasets and results
+      - ../dataset:/app/dataset
+      - ../results:/app/results
+      - ../logs:/app/logs
+      
+      # Configuration files (if you want to modify without rebuilding)
+      - ../config_databases.yaml:/app/config_databases.yaml:ro
+      - ../config_vendas.yaml:/app/config_vendas.yaml:ro  
+      - ../config_volume_grupo.yaml:/app/config_volume_grupo.yaml:ro
+      
+      # Environment file
+      - ../.env:/app/.env:ro
+
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+    
+    # Default command - can be overridden
+    command: ["sales"]
+    
+    # Optional: Schedule with cron-like behavior
+    # Uncomment and modify if you want scheduled execution
+    # labels:
+    #   - "ofelia.enabled=true"
+    #   - "ofelia.job-exec.forecasting-sales.schedule=0 2 * * *"
+    #   - "ofelia.job-exec.forecasting-sales.command=python run_forecast_vendas.py"
+    #   - "ofelia.job-exec.forecasting-volume.schedule=0 4 * * *"  
+    #   - "ofelia.job-exec.forecasting-volume.command=python run_forecast_volume.py"
+
+  # Optional: Scheduler service using ofelia
+  # Uncomment if you want automated scheduling
+  # ofelia:
+  #   image: mcuadros/ofelia:latest
+  #   container_name: forecasting-scheduler
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - forecasting-pipeline
+  #   command: daemon --docker
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #   networks:
+  #     - forecasting-net
+
+volumes:
+  # Optional: Create named volumes if preferred over bind mounts
+  forecasting-data:
+  forecasting-results:
+  forecasting-logs:

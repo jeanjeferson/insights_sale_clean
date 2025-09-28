@@ -1,0 +1,143 @@
+# Configuração Otimizada para Forecasting de Vendas por Empresa
+# Versão SEM WARNINGS - Parâmetros limpos e otimizados
+
+# Configurações do modelo (parâmetros limpos sem warnings)
+model:
+  lags: 14                      # 4 semanas de histórico
+  forecast_horizon: 30          # 30 dias de previsão
+  quantiles: [0.1, 0.5, 0.9]    # Intervalos de confiança
+  random_state: 42
+  
+  # Parâmetros LightGBM - apenas os necessários (sem deprecados)
+  n_estimators: 500             # Mais árvores para dados univariados
+  num_leaves: 28                # Mais folhas para capturar padrões complexos
+  learning_rate: 0.03           # Taxa menor para melhor precisão
+  max_depth: -1                 # Sem limitação de profundidade
+  min_data_in_leaf: 25          # Mínimo de dados por folha
+  feature_fraction: 0.8         # 90% das features por árvore
+  bagging_fraction: 0.8         # 90% dos dados por árvore
+  colsample_bytree: 0.8         # adicionado para regularização
+  bagging_freq: 3               # Frequência do bagging
+
+# Pré-processamento simplificado
+preprocessing:
+  fill_missing: true            # Preencher valores ausentes
+  scale_data: true              # Normalizar dados
+  log_transform: true           # Transformação log para dados monetários
+  detect_anomalies: true        # Detectar outliers
+  anomaly_threshold: 2.8        # Z-score para outliers
+
+# Configurações de validação
+backtest:
+  start: 0.8                    # 80% treino, 20% teste
+  stride: 1                     # Passos de 1 dia
+  retrain: true                 # Retreinar modelo
+  overlap_end: false            # Sem sobreposição
+  reduction: mean               # Média das métricas
+
+# Configurações de processamento por empresa
+group_processing:
+  min_data_points: 40          # Mínimo de pontos por empresa
+  min_non_zero_ratio: 0.2      # 20% de valores não-zero
+  max_groups: 50               # Máximo de empresas
+  parallel_jobs: 2             # Jobs paralelos
+  min_total_sales: 1000        # Vendas mínimas totais
+  exclude_zero_groups: true    # Excluir empresas sem vendas
+
+# Configurações de covariáveis (simplificadas)
+covariates:
+  time_attributes: ['dayofweek', 'month', 'dayofyear']
+  
+# Configurações de saída
+output:
+  save_plots: true
+  save_models: false           
+  detailed_metrics: true
+  export_predictions: true
+  
+# Configurações de FTP
+ftp:
+  enabled: true
+  upload_plots: true
+  upload_predictions: true
+  remote_dir: "vendas_empresa"
+  
+# Configurações específicas para dados de vendas
+sales_processing:
+  currency_format: true
+  aggregate_method: 'sum'
+  seasonality_detection: true
+  trend_detection: true
+  
+# Logging (silencioso)
+logging:
+  level: 'INFO'
+  save_logs: true
+  detailed_group_info: true
+
+# CONFIGURAÇÃO PARA VENDAS POR EMPRESA (MUITO FLEXÍVEL)
+vendas_processing:
+  # Filtros flexíveis
+  target_percentile: 60           # Top 60% das empresas
+  min_records_per_group: 30      # Mínimo 30 dias de dados
+  
+  # Tolerância alta para zeros
+  max_zero_ratio: 0.9            # 90% de tolerância com zeros
+  max_consecutive_zeros: 80      # 80 dias consecutivos
+  
+  # Configurações adaptativas
+  min_groups_target: 0.4         # Aceitar 40% das empresas
+  fallback_enabled: true         # Fallback automático
+  min_volume_coverage: 0.5       # Aceitar 50% do volume
+  max_groups: 30                 # Limite de 30 empresas
+  currency_precision: 2          # Precisão monetária
+
+# CONFIGURAÇÕES POR TAMANHO DE DATABASE
+database_size_rules:
+  small:
+    target_percentile: 95        # Muito flexível
+    min_records_per_group: 20   
+    max_zero_ratio: 0.95        
+    
+  medium:
+    target_percentile: 80        
+    min_records_per_group: 25   
+    max_zero_ratio: 0.9         
+    
+  large:
+    target_percentile: 60        
+    min_records_per_group: 30   
+    max_zero_ratio: 0.85        
+
+# CONFIGURAÇÕES ESPECÍFICAS POR DATABASE
+database_overrides:
+  # Database de teste - configuração flexível
+  "005RG_ERP_BI":
+    vendas_processing:
+      target_percentile: 90      # Muito flexível para teste
+      min_records_per_group: 25  # Menos dias necessários
+      max_zero_ratio: 0.95       # Muito tolerante com zeros
+      max_groups: 10             # Máximo para teste
+      
+  # Outros databases com configurações específicas
+  "005ATS_ERP_BI":
+    vendas_processing:
+      target_percentile: 60      
+      max_groups: 20             
+      
+  "001RR_BI":
+    vendas_processing:
+      target_percentile: 95      
+      min_records_per_group: 20  
+      
+  "014CST_ERP_BI":
+    vendas_processing:
+      max_consecutive_zeros: 100 
+      max_zero_ratio: 0.95       
+
+# CONFIGURAÇÕES ASSÍNCRONAS (reduzidas para estabilidade)
+async:
+  enabled: true                  
+  max_concurrency: 2            # Reduzido para 2
+  chunk_size: 5                 # Lotes pequenos
+  timeout_per_task: 300         # 5 minutos por empresa

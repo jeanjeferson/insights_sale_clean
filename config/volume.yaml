@@ -1,0 +1,196 @@
+# Configuração para Forecasting de VOLUME CONSOLIDADO
+# Otimizada para dados de quantidade/volume por data (dados univariados)
+
+# Configurações do modelo
+model:
+  lags: 56                      # 8 semanas de histórico
+  forecast_horizon: 30          # 30 dias de previsão
+  quantiles: [0.1, 0.5, 0.9]    # Intervalos de confiança
+  random_state: 42
+  
+  # Parâmetros LightGBM otimizados para dados de volume
+  n_estimators: 600             # Mais árvores para dados de volume
+  num_leaves: 63                # Mais folhas para capturar padrões sazonais
+  learning_rate: 0.06           # Taxa menor para dados de volume (mais estáveis)
+  max_depth: -1                 # Sem limitação de profundidade
+  min_data_in_leaf: 15          # Menos dados por folha (volume pode ter mais variação)
+  feature_fraction: 0.9         # 90% das features por árvore
+  bagging_fraction: 0.8         # 80% dos dados por árvore (mais conservador para volume)
+  bagging_freq: 5               # Frequência do bagging
+
+# Pré-processamento específico para volume
+preprocessing:
+  fill_missing: true            # Preencher valores ausentes
+  scale_data: true              # Normalizar dados
+  log_transform: true           # Transformação log para dados de volume
+  detect_anomalies: true        # Detectar outliers
+  anomaly_threshold: 2.5        # Z-score mais conservador para volume (2.5 desvios)
+
+# Configurações de validação
+backtest:
+  start: 0.75                   # 75% treino, 25% teste
+  stride: 1                     # Stride para backtest
+
+# Covariáveis temporais para volume
+covariates:
+  time_attributes:
+    - dayofweek                 # Dia da semana (0-6, Segunda=0)
+    - month                     # Mês (1-12)
+    - quarter                   # Trimestre (1-4)
+    - dayofyear                 # Dia do ano (1-365)
+    - weekofyear                # Semana do ano (1-52)
+    - is_weekend                # Final de semana (importante para volume)
+
+# Configurações de HPO (opcional)
+hyperparameter_optimization:
+  enabled: false
+  trials: 50
+  param_space:
+    lags: [28, 56, 84]
+    learning_rate: [0.04, 0.06, 0.08]
+    n_estimators: [400, 600, 800]
+    num_leaves: [31, 63, 127]
+
+# Classificação de clientes (simplificada)
+client_types:
+  manufacturing:
+    - "005ATS_ERP_BI"
+    - "014CST_IJC_BI"
+    - "013CRO_ERP_BI"
+    - "012DIPUA_ERP_BI"
+    - "005RG_ERP_BI"
+  
+  non_manufacturing:
+    - "012ARR_ERP_BI"
+    - "007BE_ERP_BI"
+    - "014CST_ERP_BI"
+    - "006GF_BI"
+    - "008GT_BI"
+    - "005NO_ERP_BI"
+    - "014PR_ERP_BI"
+    - "001RR_BI"
+    - "014ZI_ERP_BI"
+
+# Configurações específicas por tipo
+type_specific_configs:
+  manufacturing:
+    model:
+      lags: 84                  # Maior janela para padrões industriais
+      n_estimators: 700         # Mais complexidade para indústria
+  non_manufacturing:
+    model:
+      lags: 56                  # Janela padrão para comércio/serviços
+      learning_rate: 0.08       # Taxa ligeiramente maior
+
+# Configurações específicas para processamento de volume
+volume_processing:
+  min_non_zero_ratio: 0.2       # Mínimo 20% de dias com volume > 0 (menos restritivo)
+  outlier_cap_percentile: 95    # Limitar outliers no percentil 95 (mais conservador)
+  seasonal_check_periods: [7, 30, 90, 365]  # Incluir sazonalidade anual
+  zero_padding: true            # Permitir zeros no volume (diferente de vendas)
+
+# Configurações de qualidade dos dados
+data_quality:
+  min_days_history: 120         # Mínimo 4 meses de histórico (menos que vendas)
+  max_zero_consecutive: 60      # Máximo 60 dias consecutivos sem volume
+  min_daily_variance: 0.001     # Variância mínima menor (volume pode ser mais constante)
+  allow_zero_days: true         # Permitir dias com volume zero
+
+# Configurações de performance
+performance:
+  use_gpu: false                # GPU acceleration (se disponível)
+  n_jobs: -1                    # Usar todos os cores disponíveis
+  early_stopping_rounds: 40     # Parar se não houver melhora (menor para volume)
+  
+# Configurações de saída
+output:
+  include_confidence_intervals: true   # Incluir intervalos de confiança
+  save_model_importance: true          # Salvar importância das features
+  create_detailed_plots: true          # Criar gráficos detalhados
+  export_format: ['csv']               # Formatos de exportação
+
+  # Configurações específicas de FTP
+  local_backup: true                   # Manter cópia local mesmo com FTP
+  ftp_retry_attempts: 3                # Tentativas de reenvio em caso de erro
+
+# Configurações de alertas e limites (ajustadas para volume)
+alerts:
+  low_accuracy_threshold: 0.35   # MAPE > 35% gera alerta (volume pode ser mais volátil)
+  high_bias_threshold: 0.25      # Bias > 25% gera alerta
+  low_r2_threshold: 0.4          # R² < 0.4 gera alerta (menos restritivo)
+
+# Configurações avançadas por tipo de cliente
+client_specific:
+  manufacturing:
+    model:
+      lags: 84                   # Mais histórico para indústria
+      seasonal_periods: [7, 30, 90, 365]  # Incluir sazonalidade anual
+      learning_rate: 0.05        # Taxa menor para estabilidade
+  
+  retail:
+    model:
+      lags: 42                   # Menos histórico para varejo
+      learning_rate: 0.08        # Taxa maior para adaptação rápida
+    
+    volume_processing:
+      min_non_zero_ratio: 0.4    # Esperar mais atividade no varejo
+  
+  services:
+    model:
+      lags: 28                   # Histórico menor para serviços
+      n_estimators: 400          # Menos complexidade
+
+# Configurações de Upload FTP para Volume
+ftp_upload:
+  enabled: true                 # Habilitar upload automático para FTP
+  on_error: 'continue'          # Comportamento em caso de erro FTP
+  
+  # Configurações avançadas
+  server_config:
+    host: "192.168.49.30"       # Host do servidor SFTP
+    port: 8887                  # Porta do servidor SFTP
+    username: "sftp_ia01"       # Usuário SFTP
+    
+  upload_structure:
+    base_path: "ai"             # Pasta base no FTP
+    # Estrutura final será: ai/{database_name}/volume/
+    
+  files_to_upload:
+    - "metricas_volume.csv"     # Métricas de performance
+    - "previsoes_volume.csv"    # Previsões do modelo
+    - "volume_historico.csv"    # Dados históricos
+
+# Configurações específicas para dados de volume
+volume_specific:
+  # Volume pode ter comportamentos diferentes de vendas
+  handle_seasonality: true       # Volume tem sazonalidade forte
+  weekend_adjustment: true       # Ajustar para comportamento de fim de semana
+  holiday_impact: true          # Volume é mais impactado por feriados
+  industrial_calendar: true     # Considerar calendário industrial (para manufacturing)
+  
+  # Métricas específicas para volume
+  volume_metrics:
+    - "volume_growth_rate"      # Taxa de crescimento de volume
+    - "volume_volatility"       # Volatilidade do volume
+    - "zero_days_ratio"         # Proporção de dias sem volume
+    - "peak_volume_days"        # Dias de pico de volume
+
+# Configurações de transformação específicas para volume
+transformations:
+  volume_smoothing: true        # Suavizar dados de volume
+  trend_adjustment: true        # Ajustar tendência sazonal
+  outlier_treatment: "cap"      # Capear outliers ao invés de remover
+  missing_strategy: "interpolate"  # Estratégia para valores ausentes
+
+# Validação cruzada específica para volume
+validation:
+  cv_method: "expanding_window" # Janela expansiva (melhor para volume)
+  min_train_size: 90           # Tamanho mínimo de treino (dias)
+  test_size: 30                # Tamanho do teste (dias)
+  gap: 0                       # Gap entre treino e teste
+
+# Configurações de ensemble (opcional)
+ensemble:
+  enabled: false               # Desabilitado por padrão
+  models: ["lightgbm", "linear_regression"]
+  weights: "auto"              # Pesos automáticos baseados em performance

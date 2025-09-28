@@ -1,0 +1,24 @@
+# Requirements for insights_sale_clean project
+# Pacotes essenciais baseados na análise do código
+
+# Data Science core
+pandas==2.3.2
+numpy==2.3.3
+
+# Forecasting e Machine Learning
+darts[all]==0.37.1
+lightgbm==4.6.0
+
+# Visualização
+matplotlib==3.10.6
+
+# Database
+sqlalchemy==2.0.43
+pyodbc==5.2.0
+
+# Conectividade
+paramiko==4.0.0
+
+# Configuração
+PyYAML==6.0.1
+python-dotenv==1.1.1

@@ -1,0 +1,423 @@
+# Configuração Completa de Parâmetros LightGBM
+# Baseado na documentação oficial: https://lightgbm.readthedocs.io/en/latest/Parameters.html
+
+# =============================================================================
+# PARÂMETROS PRINCIPAIS (Core Parameters)
+# =============================================================================
+core_parameters:
+  # Função Objetivo
+  objective:
+    description: "Especifica a tarefa de aprendizado e função objetivo"
+    default: "regression"
+    options:
+      regression:
+        - "regression" # L2 loss (padrão)
+        - "regression_l2" # Alias para regression
+        - "regression_l1" # L1 loss
+        - "huber" # Huber loss
+        - "fair" # Fair loss
+        - "poisson" # Regressão Poisson
+        - "quantile" # Regressão Quantílica
+        - "mape" # MAPE loss
+        - "gamma" # Regressão Gamma com log-link
+        - "tweedie" # Regressão Tweedie com log-link
+      classification:
+        - "binary" # Classificação binária
+        - "multiclass" # Classificação multi-classe
+        - "multiclassova" # One-vs-All
+      cross_entropy:
+        - "cross_entropy" # Cross-entropy
+        - "cross_entropy_lambda" # Cross-entropy alternativo
+      ranking:
+        - "lambdarank" # LambdaRank objective
+        - "rank_xendcg" # XE_NDCG_MART ranking
+    aliases: ["objective_type", "app", "application", "loss"]
+
+  # Tipo de Boosting
+  boosting_type:
+    description: "Algoritmo de boosting a ser usado"
+    default: "gbdt"
+    options:
+      - "gbdt" # Gradient Boosting Decision Tree (tradicional)
+      - "dart" # Dropouts meet Multiple Additive Regression Trees
+      - "rf" # Random Forest
+      - "goss" # Gradient-based One-Side Sampling
+    aliases: ["boost", "boosting"]
+
+  # Tarefa
+  task:
+    description: "Tipo de tarefa a ser executada"
+    default: "train"
+    options:
+      - "train" # Treinamento
+      - "predict" # Predição
+      - "convert_model" # Conversão de modelo
+      - "refit" # Re-treinamento
+      - "save_binary" # Salvar dados em formato binário
+    aliases: ["task_type"]
+
+# =============================================================================
+# MÉTRICAS DE AVALIAÇÃO
+# =============================================================================
+metrics:
+  description: "Métricas para avaliação do modelo"
+  regression_metrics:
+    - "rmse" # Root Mean Squared Error
+    - "mse" # Mean Squared Error
+    - "mae" # Mean Absolute Error
+    - "mape" # Mean Absolute Percentage Error
+    - "huber" # Huber loss
+    - "fair" # Fair loss
+    - "poisson" # Poisson deviance
+    - "quantile" # Quantile loss
+    - "gamma" # Gamma deviance
+    - "tweedie" # Tweedie deviance
+  
+  classification_metrics:
+    - "binary_logloss" # Log loss binário
+    - "binary_error" # Taxa de erro binário
+    - "auc" # Area Under Curve
+    - "multi_logloss" # Log loss multi-classe
+    - "multi_error" # Taxa de erro multi-classe
+    - "cross_entropy" # Cross entropy
+    - "cross_entropy_lambda" # Cross entropy lambda
+  
+  ranking_metrics:
+    - "ndcg" # Normalized Discounted Cumulative Gain
+    - "lambdarank" # LambdaRank
+    - "rank_xendcg" # XE_NDCG_MART
+    - "map" # Mean Average Precision
+  
+  special:
+    - "None" # Ignora métrica padrão
+
+# =============================================================================
+# PARÂMETROS DE CONTROLE DE APRENDIZADO
+# =============================================================================
+learning_control:
+  # Estrutura da Árvore
+  tree_structure:
+    num_leaves:
+      description: "Número máximo de folhas em uma árvore"
+      default: 31
+      type: "int"
+      aliases: ["num_leaf"]
+    
+    max_depth:
+      description: "Profundidade máxima da árvore (-1 = sem limite)"
+      default: -1
+      type: "int"
+    
+    min_data_in_leaf:
+      description: "Número mínimo de dados em uma folha"
+      default: 20
+      type: "int"
+      aliases: ["min_data_per_leaf", "min_data"]
+    
+    min_sum_hessian_in_leaf:
+      description: "Soma mínima de hessiana em uma folha"
+      default: 1e-3
+      type: "double"
+      aliases: ["min_sum_hessian_per_leaf", "min_sum_hessian", "min_hessian"]
+    
+    min_split_gain:
+      description: "Ganho mínimo necessário para fazer uma divisão"
+      default: 0.0
+      type: "double"
+      aliases: ["min_gain_to_split"]
+
+  # Taxa de Aprendizado
+  learning_rate:
+    description: "Taxa de aprendizado do boosting"
+    default: 0.1
+    type: "double"
+    aliases: ["shrinkage_rate", "eta"]
+  
+  # Número de Iterações
+  num_iterations:
+    description: "Número de iterações de boosting"
+    default: 100
+    type: "int"
+    aliases: ["num_iteration", "num_tree", "num_trees", "num_round", "num_rounds", "n_estimators"]
+
+# =============================================================================
+# PARÂMETROS DE AMOSTRAGEM E SELEÇÃO DE FEATURES
+# =============================================================================
+sampling_and_features:
+  # Amostragem de Features
+  feature_fraction:
+    description: "Fração de features selecionadas aleatoriamente"
+    default: 1.0
+    type: "double"
+    range: "(0.0, 1.0]"
+    aliases: ["sub_feature", "colsample_bytree"]
+  
+  feature_fraction_seed:
+    description: "Semente aleatória para seleção de features"
+    default: 2
+    type: "int"
+  
+  # Amostragem de Dados (Bagging)
+  bagging_fraction:
+    description: "Fração de dados selecionados aleatoriamente"
+    default: 1.0
+    type: "double"
+    range: "(0.0, 1.0]"
+    aliases: ["sub_row", "subsample"]
+  
+  bagging_freq:
+    description: "Frequência do bagging (0 = desabilitado)"
+    default: 0
+    type: "int"
+    aliases: ["subsample_freq"]
+  
+  bagging_seed:
+    description: "Semente aleatória para bagging"
+    default: 3
+    type: "int"
+
+# =============================================================================
+# PARÂMETROS DE REGULARIZAÇÃO
+# =============================================================================
+regularization:
+  reg_alpha:
+    description: "Termo de regularização L1"
+    default: 0.0
+    type: "double"
+    aliases: ["lambda_l1"]
+  
+  reg_lambda:
+    description: "Termo de regularização L2"
+    default: 0.0
+    type: "double"
+    aliases: ["lambda_l2"]
+  
+  min_child_weight:
+    description: "Peso mínimo necessário em um nó filho"
+    default: 1e-3
+    type: "double"
+    aliases: ["min_child_samples"]
+
+# =============================================================================
+# PARÂMETROS DE PERFORMANCE E OTIMIZAÇÃO
+# =============================================================================
+performance:
+  # Paralelização
+  num_threads:
+    description: "Número de threads para LightGBM"
+    default: "OpenMP_default"
+    type: "int"
+    aliases: ["num_thread", "nthread", "n_jobs"]
+  
+  # Construção de Histograma
+  force_col_wise:
+    description: "Força construção de histograma por coluna"
+    default: false
+    type: "bool"
+  
+  force_row_wise:
+    description: "Força construção de histograma por linha"
+    default: false
+    type: "bool"
+  
+  # Binning
+  max_bin:
+    description: "Número máximo de bins para valores de features"
+    default: 255
+    type: "int"
+  
+  min_data_in_bin:
+    description: "Número mínimo de dados em um bin"
+    default: 3
+    type: "int"
+  
+  # GPU
+  device:
+    description: "Dispositivo para aprendizado da árvore"
+    default: "cpu"
+    options: ["cpu", "gpu"]
+  
+  gpu_use_dp:
+    description: "Usar precisão dupla na GPU"
+    default: false
+    type: "bool"
+
+# =============================================================================
+# PARÂMETROS DE VALIDAÇÃO E EARLY STOPPING
+# =============================================================================
+validation:
+  early_stopping_round:
+    description: "Para treinamento se métrica não melhorar"
+    default: 0
+    type: "int"
+    aliases: ["early_stopping_rounds", "early_stopping", "n_iter_no_change"]
+  
+  first_metric_only:
+    description: "Usar apenas primeira métrica para early stopping"
+    default: false
+    type: "bool"
+  
+  metric_freq:
+    description: "Frequência para imprimir métricas"
+    default: 1
+    type: "int"
+    aliases: ["output_freq"]
+
+# =============================================================================
+# PARÂMETROS ESPECÍFICOS PARA CLASSIFICAÇÃO
+# =============================================================================
+classification_specific:
+  num_class:
+    description: "Número de classes (para classificação multi-classe)"
+    type: "int"
+    note: "Obrigatório para multiclass"
+  
+  is_unbalance:
+    description: "Dados desbalanceados (para classificação binária)"
+    default: false
+    type: "bool"
+    aliases: ["unbalanced_sets"]
+  
+  scale_pos_weight:
+    description: "Peso para classe positiva (classificação binária)"
+    default: 1.0
+    type: "double"
+
+# =============================================================================
+# PARÂMETROS ESPECÍFICOS PARA REGRESSÃO
+# =============================================================================
+regression_specific:
+  alpha:
+    description: "Parâmetro para Huber loss e Quantile regression"
+    default: 0.9
+    type: "double"
+  
+  tweedie_variance_power:
+    description: "Parâmetro de variância para Tweedie regression"
+    default: 1.5
+    type: "double"
+    range: "(1.0, 2.0)"
+
+# =============================================================================
+# PARÂMETROS DE DADOS E I/O
+# =============================================================================
+data_io:
+  categorical_feature:
+    description: "Índices ou nomes de features categóricas"
+    type: "list"
+    aliases: ["cat_feature", "categorical_column"]
+  
+  ignore_column:
+    description: "Índices ou nomes de colunas a ignorar"
+    type: "list"
+    aliases: ["ignored_feature"]
+  
+  header:
+    description: "Dados têm cabeçalho"
+    default: false
+    type: "bool"
+    aliases: ["has_header"]
+  
+  label_column:
+    description: "Índice ou nome da coluna de rótulo"
+    type: "string or int"
+    aliases: ["label"]
+
+# =============================================================================
+# PARÂMETROS AVANÇADOS
+# =============================================================================
+advanced:
+  # Sementes Aleatórias
+  random_state:
+    description: "Semente para geração de números aleatórios"
+    type: "int"
+    aliases: ["seed", "random_seed"]
+  
+  # Monotonic Constraints
+  monotone_constraints:
+    description: "Restrições monotônicas para features"
+    type: "list"
+    note: "1 = crescente, -1 = decrescente, 0 = sem restrição"
+  
+  # Feature Penalties
+  feature_penalty:
+    description: "Penalidades para features específicas"
+    type: "list"
+  
+  # Interaction Constraints
+  interaction_constraints:
+    description: "Restrições de interação entre features"
+    type: "list"
+
+# =============================================================================
+# CONFIGURAÇÕES RECOMENDADAS POR CENÁRIO
+# =============================================================================
+recommended_configs:
+  vendas_forecast:
+    description: "Configuração otimizada para previsão de vendas"
+    objective: "regression"
+    metric: "rmse"
+    boosting_type: "gbdt"
+    num_leaves: 31
+    learning_rate: 0.1
+    feature_fraction: 0.9
+    bagging_fraction: 0.8
+    bagging_freq: 5
+    min_child_samples: 20
+    force_col_wise: true
+    random_state: 42
+  
+  high_performance:
+    description: "Configuração para alta performance"
+    boosting_type: "gbdt"
+    num_leaves: 255
+    max_depth: -1
+    learning_rate: 0.05
+    n_estimators: 1000
+    subsample: 0.8
+    colsample_bytree: 0.8
+    reg_alpha: 0.1
+    reg_lambda: 0.1
+    force_col_wise: true
+  
+  robust_model:
+    description: "Configuração robusta contra overfitting"
+    objective: "huber"
+    boosting_type: "dart"
+    num_leaves: 31
+    max_depth: 6
+    learning_rate: 0.05
+    min_child_samples: 50
+    reg_alpha: 0.5
+    reg_lambda: 0.5
+    bagging_fraction: 0.7
+    feature_fraction: 0.8
+    early_stopping_round: 50
+
+# =============================================================================
+# NOTAS IMPORTANTES
+# =============================================================================
+notes:
+  parameter_priority: |
+    Parâmetros são mesclados na seguinte ordem (itens posteriores sobrescrevem anteriores):
+    1. Valores padrão do LightGBM
+    2. Arquivos especiais (weight, init_score, query, positions)
+    3. Arquivo de configuração
+    4. Linha de comando
+    5. Argumentos especiais de funções
+    6. Parâmetro params
+  
+  aliases: |
+    Muitos parâmetros têm "aliases" (nomes alternativos).
+    O nome principal do parâmetro sempre tem prioridade sobre aliases.
+  
+  performance_tips: |
+    - Use force_col_wise=true para melhor performance e determinismo
+    - Ajuste num_threads para número de cores físicos da CPU
+    - Para datasets grandes, considere usar max_bin menor (ex: 63)
+    - Use early_stopping_round para evitar overfitting
+  
+  memory_optimization: |
+    - Reduza max_bin para economizar memória
+    - Use feature_fraction < 1.0 para reduzir uso de memória
+    - Para datasets muito grandes, considere usar goss boosting

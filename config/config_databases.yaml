@@ -1,0 +1,87 @@
+# Configuração Simples dos Databases
+# Lista dos databases para extração de dados
+
+databases:
+  # - '001RR_BI'
+  - '005ATS_ERP_BI'
+  - '005NO_ERP_BI'
+  - '005RG_ERP_BI'
+  - '006GF_BI'
+  - '007BE_ERP_BI'
+  - '008GT_BI'
+  - '012ARR_ERP_BI'
+  # - '012CATTO_ERP_BI'
+  - '012DIPUA_ERP_BI'
+  - '013BW_ERP_BI'
+  - '013CRO_ERP_BI'
+  - '014CST_ERP_BI'
+  - '014CST_IJC_BI'
+  - '014PR_ERP_BI'
+  - '014ZI_ERP_BI'
+
+# Queries para extração de dados
+queries:
+  # Query para extração de vendas (em valores monetários)
+  vendas:
+    SELECT
+        CAST(vendas.datas AS DATE) AS data,
+        SUM(CAST(vendas.totas AS DECIMAL(10,3))) AS vendas
+    FROM sljgdmi AS vendas WITH (NOLOCK)
+    WHERE vendas.ggrus IN (
+        SELECT DISTINCT A.ggrus
+        FROM SLJGDMI A
+        JOIN SLJGGRP B ON A.ggrus = B.codigos AND B.relgers <> 2
+    )
+    AND vendas.datas BETWEEN :date_start AND :date_end
+    GROUP BY 
+        CAST(vendas.datas AS DATE)
+    ORDER BY CAST(vendas.datas AS DATE) ASC
+
+  # Query para extração de vendas por empresa
+  vendas_empresa:
+    SELECT
+        CAST(vendas.datas AS DATE) AS data,
+        RTRIM(vendas.emps) AS Empresa,
+        SUM(CAST(vendas.totas AS DECIMAL(10,3))) AS vendas
+    FROM sljgdmi AS vendas WITH (NOLOCK)
+    LEFT JOIN sljpro p ON p.cpros = vendas.cpros
+    WHERE vendas.ggrus IN (
+        SELECT DISTINCT A.ggrus
+        FROM SLJGDMI A
+        JOIN SLJGGRP B ON A.ggrus = B.codigos AND B.relgers <> 2
+    )
+    AND vendas.datas BETWEEN :date_start AND :date_end
+    GROUP BY 
+        CAST(vendas.datas AS DATE),
+        RTRIM(vendas.emps)
+    ORDER BY CAST(vendas.datas AS DATE) ASC
+
+  # Query para extração de volume vendido (em quantidades por grupo de produto)
+  volume:
+    SELECT
+        CAST(vendas.datas AS DATE) AS data,
+        SUM(CAST(vendas.qtds AS BIGINT)) AS Quantidade
+    FROM sljgdmi AS vendas WITH (NOLOCK)
+    WHERE vendas.ggrus IN (
+        SELECT DISTINCT A.ggrus
+        FROM SLJGDMI A
+        JOIN SLJGGRP B ON A.ggrus = B.codigos AND B.relgers <> 2
+    )
+    AND vendas.datas BETWEEN :date_start AND :date_end
+    GROUP BY 
+        CAST(vendas.datas AS DATE)
+    ORDER BY CAST(vendas.datas AS DATE) ASC
+
+# Configurações de extração
+extraction:
+  default_days_back: 730  # 2 anos
+  output_format: csv
+  separator: ';'
+  encoding: 'utf-8'
+  
+# Configurações de arquivos de saída
+output:
+  vendas_suffix: '_vendas'     # Sufixo para arquivos de vendas
+  vendas_empresa_suffix: '_vendas_empresa' # Sufixo para arquivos de vendas por empresa
+  volume_suffix: '_volume'     # Sufixo para arquivos de volume
+  base_dir: 'dataset'          # Diretório base para salvar arquivos
