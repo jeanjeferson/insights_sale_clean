@@ -36,22 +36,20 @@ RUN pip3 install --upgrade pip && \
 # Copy environment file (if exists)
 COPY .env* ./
 
-# Copy entrypoint script
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
 # Copy main application files
-COPY sql_query.py ./
-COPY run_forecast_vendas.py ./
-COPY run_forecast_volume.py ./
-COPY ftp_uploader.py ./
-COPY api_forecast.py ./
-COPY api_usage.py ./
+COPY run_all_pipelines.py ./
+
+# Copy pipelines directory
+COPY pipelines/ ./pipelines/
+
+# Copy utils directory
+COPY utils/ ./utils/
+
+# Copy api directory
+COPY api/ ./api/
 
 # Copy configuration files
-COPY config_databases.yaml ./
-COPY config_vendas.yaml ./
-COPY config_volume_grupo.yaml ./
+COPY config/ ./config/
 
 # Copy SQL directory
 COPY sql ./sql/
@@ -70,10 +68,10 @@ USER forecaster
 
 # Health check to verify the environment is ready
 HEALTHCHECK --interval=300s --timeout=60s --start-period=30s --retries=2 \
-    CMD python -c "import darts, pandas, numpy, lightgbm; print('Environment OK')" || exit 1
+    CMD python -c "import darts, pandas, numpy, lightgbm, yaml, fastapi, uvicorn; print('Environment OK')" || exit 1
 
-# Set entrypoint
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# Expose port for API
+EXPOSE 8000
 
-# Default command - runs the sales forecasting pipeline  
-CMD ["sales"]
+# Default command - starts the FastAPI server
+CMD ["python", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
