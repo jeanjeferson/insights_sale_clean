@@ -1,5 +1,5 @@
 # Dockerfile otimizado para Forecasting Pipeline com Darts
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -9,15 +9,20 @@ ENV PYTHONUNBUFFERED=1 \
     CONTAINER=true \
     PYTHONPATH=/app
 
-# Install system dependencies including database drivers and ML libraries
+# Install system dependencies including ODBC drivers and network tools
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     git \
+    netcat-openbsd \
+    net-tools \
+    unixodbc \
     unixodbc-dev \
-    freetds-dev \
-    freetds-bin \
-    tdsodbc \
+    odbcinst \
+    libodbcinst2 \
+    libodbc2 \
+    unixodbc-common \
+    gnupg2 \
     ca-certificates \
     pkg-config \
     libgomp1 \
@@ -25,6 +30,24 @@ RUN apt-get update && apt-get install -y \
     libopenblas-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Microsoft ODBC Driver 18 for SQL Server
+RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg && \
+    echo "deb [arch=amd64,armhf,arm64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" > /etc/apt/sources.list.d/mssql-release.list && \
+    apt-get update && \
+    ACCEPT_EULA=Y apt-get install -y msodbcsql18 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Verify ODBC Driver 18 installation
+RUN echo "[ODBC Driver 18 for SQL Server]" >> /etc/odbcinst.ini && \
+    echo "Description=Microsoft ODBC Driver 18 for SQL Server" >> /etc/odbcinst.ini && \
+    echo "Driver=/opt/microsoft/msodbcsql18/lib64/libmsodbcsql-18.4.so.1.1" >> /etc/odbcinst.ini && \
+    echo "Threading=1" >> /etc/odbcinst.ini && \
+    echo "FileUsage=1" >> /etc/odbcinst.ini && \
+    echo "" >> /etc/odbcinst.ini
+
+# List available ODBC drivers for verification
+RUN odbcinst -q -d
 
 # Copy dependency files first (for better Docker layer caching)
 COPY requirements.txt ./

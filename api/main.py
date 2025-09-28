@@ -282,6 +282,12 @@ async def extract_sales_data(background_tasks: BackgroundTasks):
     request = DataExtractionRequest(data_type="vendas")
     return await extract_data(request, background_tasks)
 
+@app.get("/data/extract/sales")
+async def extract_sales_data_get(background_tasks: BackgroundTasks):
+    """Extrai apenas dados de vendas (GET endpoint para facilitar testes)."""
+    request = DataExtractionRequest(data_type="vendas")
+    return await extract_data(request, background_tasks)
+
 @app.post("/data/extract/volume")
 async def extract_volume_data(background_tasks: BackgroundTasks):
     """Extrai apenas dados de volume."""
