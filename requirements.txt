@@ -22,3 +22,9 @@ paramiko==4.0.0
 # Configuração
 PyYAML==6.0.1
 python-dotenv==1.1.1
+
+# FastAPI dependencies
+fastapi
+uvicorn[standard]
+aiohttp
+requests
