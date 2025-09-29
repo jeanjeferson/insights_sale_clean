@@ -12,6 +12,7 @@ import yaml
 import warnings
 import os
 import sys
+import time
 
 # ========================================
 # SUPRESSÃO COMPLETA DE WARNINGS
@@ -422,6 +423,7 @@ class VendasEmpresaForecastPipeline:
         """Executa forecast completo para um database."""
         self._log_info(f"Iniciando forecast para database: {database}")
         
+        start_time = time.perf_counter()
         results = {
             'database': database,
             'successful_forecasts': 0,
@@ -514,7 +516,10 @@ class VendasEmpresaForecastPipeline:
             
             # Log do resultado
             self._log_info(f"✅ Forecast concluído: {results['successful_forecasts']}/{results['total_empresas']} empresas")
-            
+            elapsed = time.perf_counter() - start_time
+            results['elapsed_seconds'] = elapsed
+            self._log_info(f"⏱️ Tempo total (vendas_empresa pipeline): {elapsed:.2f}s")
+
             return results
             
         except Exception as e:
@@ -639,8 +644,12 @@ class VendasEmpresaForecastPipeline:
 
 def run_vendas_empresa_forecast(database: str) -> Dict[str, Any]:
     """Função pública para executar forecast de vendas por empresa para um database."""
+    start_time = time.perf_counter()
     pipeline = VendasEmpresaForecastPipeline()
-    return pipeline.run_forecast_for_database(database)
+    results = pipeline.run_forecast_for_database(database)
+    elapsed = time.perf_counter() - start_time
+    print(f"⏱️ Tempo total (run_vendas_empresa_forecast:{database}): {elapsed:.2f}s")
+    return results
 
 def run_single_database_vendas_empresa(database: str = None) -> Dict[str, Any]:
     """Executa forecast para um database específico."""
@@ -651,8 +660,11 @@ def run_single_database_vendas_empresa(database: str = None) -> Dict[str, Any]:
     print(f"\n{'='*60}")
     print(f"🏢 FORECAST DE VENDAS POR EMPRESA - {database}")
     print(f"{'='*60}")
-    
-    return run_vendas_empresa_forecast(database)
+    start_time = time.perf_counter()
+    results = run_vendas_empresa_forecast(database)
+    elapsed = time.perf_counter() - start_time
+    print(f"⏱️ Tempo total (run_single_database_vendas_empresa:{database}): {elapsed:.2f}s")
+    return results
 
 def run_all_databases() -> Dict[str, Any]:
     """Executa forecast de vendas por empresa para todos os databases configurados."""
@@ -697,8 +709,11 @@ def run_all_databases() -> Dict[str, Any]:
             continue
         
         try:
+            db_start = time.perf_counter()
             # Executar pipeline de vendas por empresa
             results = run_vendas_empresa_forecast(db_name)
+            db_elapsed = time.perf_counter() - db_start
+            print(f"⏱️ Tempo (database {db_name}): {db_elapsed:.2f}s")
             
             if results and results.get('success', False):
                 # Extrair informações dos resultados

@@ -21,6 +21,7 @@ from typing import Optional, Dict, Any, List, Union
 import yaml
 import warnings
 warnings.filterwarnings('ignore')
+import time
 
 # Darts imports
 from darts import TimeSeries
@@ -1258,6 +1259,7 @@ class SalesForecastPipeline:
         print("💰 SALES FORECASTING PIPELINE")
         print("=" * 50)
 
+        start_time = time.perf_counter()
         try:
             # Load and analyze sales data
             series = self.load_sales_data(file_path)
@@ -1382,7 +1384,9 @@ class SalesForecastPipeline:
             # Upload all files to FTP
             self._upload_all_to_ftp(database_name, str(output_dir), forecast_horizons)
             
+            elapsed = time.perf_counter() - start_time
             print("🎉 SALES FORECASTING COMPLETED SUCCESSFULLY!")
+            print(f"⏱️ Tempo total do pipeline: {elapsed:.2f}s")
             print("=" * 50)
             
             return {
@@ -1391,7 +1395,8 @@ class SalesForecastPipeline:
                 'metrics': all_metrics,
                 'model': self.model,
                 'database_name': database_name,
-                'horizons': forecast_horizons
+                'horizons': forecast_horizons,
+                'elapsed_seconds': elapsed
             }
             
         except Exception as e:
@@ -1403,6 +1408,7 @@ def run_sales_forecast(db_name: str):
     print(f"\n💰 Executando previsão de VENDAS para {db_name}")
     print("=" * 60)
     
+    start_time = time.perf_counter()
     # Initialize pipeline
     pipeline = SalesForecastPipeline()
     # Garantir que NÃO haverá comparação de modelos nesta rota
@@ -1495,7 +1501,9 @@ def run_sales_forecast(db_name: str):
             print(f"🏆 Qualidade geral: {quality}")
             print(f"💾 Resultados salvos em: {output_path}")
             
-        return results
+            elapsed = time.perf_counter() - start_time
+            print(f"⏱️ Tempo total (run_sales_forecast): {elapsed:.2f}s")
+            return results
         
     except Exception as e:
         print(f"❌ Erro na execução: {e}")
@@ -1524,6 +1532,7 @@ def run_all_databases():
     total_count = len(databases)
     detailed_results = []
     
+    overall_start = time.perf_counter()
     for i, db_name in enumerate(databases, 1):
         print("\n" + "="*60)
         print(f"💰 Processing SALES {i}/{total_count}: {db_name}")
@@ -1548,6 +1557,7 @@ def run_all_databases():
         output_path.mkdir(parents=True, exist_ok=True)
         
         try:
+            db_start = time.perf_counter()
             # Inicializar pipeline para este database
             pipeline = SalesForecastPipeline()
             
@@ -1555,6 +1565,8 @@ def run_all_databases():
             
             # Executar pipeline completo
             results = pipeline.run_full_pipeline(str(file_path), str(output_path), db_name)
+            db_elapsed = time.perf_counter() - db_start
+            print(f"⏱️ Tempo (database {db_name}): {db_elapsed:.2f}s")
             
             if results:
                 # Extrair métricas e previsões
@@ -1701,6 +1713,8 @@ def run_all_databases():
         except:
             pass
     
+    overall_elapsed = time.perf_counter() - overall_start
+    print(f"\n⏱️ Tempo total (run_all_databases - vendas): {overall_elapsed:.2f}s")
     return {'successful_count': successful_count, 'total_count': total_count, 'results': detailed_results}
 
 def run_single_database_sales(db_name: str):
@@ -1716,7 +1730,10 @@ def run_single_database_sales(db_name: str):
         return None
     
     # Executar
+    start_time = time.perf_counter()
     results = run_sales_forecast(db_name)
+    elapsed = time.perf_counter() - start_time
+    print(f"⏱️ Tempo total (run_single_database_sales:{db_name}): {elapsed:.2f}s")
     
     if results:
         print(f"\n🎊 PROCESSAMENTO CONCLUÍDO COM SUCESSO!")
@@ -1884,7 +1901,9 @@ def run_single_database_sales_models(db_name: str, models: Optional[List[Union[s
             pass
 
     # Executar pipeline completo (vai treinar/comparar modelos se model_list estiver definido)
+    start_time = time.perf_counter()
     results = pipeline.run_full_pipeline(str(vendas_file), str(output_path), db_name)
+    elapsed = time.perf_counter() - start_time
 
     # Resumo da comparação de modelos
     try:

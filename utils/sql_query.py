@@ -5,6 +5,7 @@ Extrator de Dados Simplificado
 import os
 import pandas as pd
 from datetime import datetime, timedelta
+import time
 from typing import Optional, List
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
@@ -69,6 +70,7 @@ class SimpleDataExtractor:
     def _create_engine(self):
         """Cria engine SQLAlchemy com configurações do .env."""
         try:
+            start = time.perf_counter()
             # Configurações do banco
             driver = os.getenv('DB_DRIVER', 'ODBC Driver 18 for SQL Server')
             server = os.getenv('DB_SERVER', 'localhost')
@@ -89,7 +91,8 @@ class SimpleDataExtractor:
             quoted_conn_str = quote_plus(odbc_conn_str)
             engine = create_engine(f"mssql+pyodbc:///?odbc_connect={quoted_conn_str}")
             
-            print("✅ Conexão com banco de dados estabelecida")
+            elapsed = time.perf_counter() - start
+            print(f"✅ Conexão com banco de dados estabelecida (⏱️ {elapsed:.2f}s)")
             return engine
             
         except Exception as e:
@@ -107,6 +110,7 @@ class SimpleDataExtractor:
             return pd.DataFrame()
         
         try:
+            start_total = time.perf_counter()
             # Modificar conexão para usar database específico
             connection_str = str(self.engine.url)
             if "DATABASE=" not in connection_str:
@@ -121,8 +125,12 @@ class SimpleDataExtractor:
             
             # Executar query
             with temp_engine.connect() as conn:
+                start_query = time.perf_counter()
                 df = pd.read_sql(text(query), conn, params=params)
+                query_elapsed = time.perf_counter() - start_query
             
+            total_elapsed = time.perf_counter() - start_total
+            print(f"🗄️ Query no DB '{database}' retornou {len(df):,} linhas (execução: {query_elapsed:.2f}s, total: {total_elapsed:.2f}s)")
             return df
             
         except Exception as e:
@@ -159,6 +167,7 @@ class SimpleDataExtractor:
         print(f"💰 Extraindo VENDAS de {database} ({date_start} a {date_end})")
         
         # Executar query
+        t0 = time.perf_counter()
         params = {"date_start": date_start, "date_end": date_end}
         df = self._execute_query(database, custom_query, params)
         
@@ -172,8 +181,9 @@ class SimpleDataExtractor:
         # Salvar CSV de vendas
         output_file = f"dataset/{database}_vendas.csv"
         df.to_csv(output_file, index=False, sep=separator, encoding=encoding)
-        
-        return f"✅ {database} VENDAS: {len(df):,} registros salvos em {output_file}"
+        elapsed = time.perf_counter()
+        print(f"⏱️ Tempo total extração (vendas/{database}): {elapsed:.2f}s")
+        return f"✅ {database} VENDAS: {len(df):,} registros salvos em {output_file} (⏱️ {elapsed:.2f}s)"
 
     def extract_volume_data(self, database: str, 
                                 date_start: str = None, 
@@ -210,6 +220,7 @@ class SimpleDataExtractor:
         print(f"📦📊 Extraindo VOLUME CONSOLIDADO de {database} ({date_start} a {date_end})")
         
         # Executar query
+        t0 = time.perf_counter()
         params = {"date_start": date_start, "date_end": date_end}
         df = self._execute_query(database, custom_query, params)
         
@@ -223,8 +234,9 @@ class SimpleDataExtractor:
         # Salvar CSV de volume consolidado
         output_file = f"dataset/{database}_volume.csv"
         df.to_csv(output_file, index=False, sep=separator, encoding=encoding)
-        
-        return f"✅ {database} VOLUME: {len(df):,} registros salvos em {output_file}"
+        elapsed = time.perf_counter()
+        print(f"⏱️ Tempo total extração (volume/{database}): {elapsed:.2f}s")
+        return f"✅ {database} VOLUME: {len(df):,} registros salvos em {output_file} (⏱️ {elapsed:.2f}s)"
 
     def extract_vendas_empresa_data(self, database: str, 
                                  date_start: str = None, 
@@ -249,6 +261,7 @@ class SimpleDataExtractor:
         print(f"💰📊 Extraindo VENDAS POR EMPRESA de {database} ({date_start} a {date_end})")
         
         # Executar query
+        t0 = time.perf_counter()
         params = {"date_start": date_start, "date_end": date_end}
         df = self._execute_query(database, custom_query, params)
         
@@ -262,8 +275,9 @@ class SimpleDataExtractor:
         # Salvar CSV de vendas por empresa
         output_file = f"dataset/{database}_vendas_empresa.csv"
         df.to_csv(output_file, index=False, sep=separator, encoding=encoding)
-        
-        return f"✅ {database} VENDAS GRUPO: {len(df):,} registros salvos em {output_file}"
+        elapsed = time.perf_counter()
+        print(f"⏱️ Tempo total extração (vendas_empresa/{database}): {elapsed:.2f}s")
+        return f"✅ {database} VENDAS GRUPO: {len(df):,} registros salvos em {output_file} (⏱️ {elapsed:.2f}s)"
 
 def extract_all_clients(data_type: str = "all"):
     """Função auxiliar para extrair dados de todos os clientes."""
