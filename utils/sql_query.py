@@ -23,6 +23,8 @@ class SimpleDataExtractor:
         self.config = self._load_config(config_file)
         self.engine = self._create_engine()
         self._ensure_dataset_dir()
+        # Controla verbosidade de logs internos (queries, conexão, etc.)
+        self.verbose = False
 
     def _load_sql_queries(self) -> dict:
         """Carrega queries dos arquivos SQL da pasta sql/."""
@@ -46,11 +48,14 @@ class SimpleDataExtractor:
                 try:
                     with open(sql_file, "r", encoding="utf-8") as f:
                         queries[query_name] = f.read().strip()
-                    print(f"✅ Query {query_name} carregada de {filename}")
+                    if self.verbose:
+                        print(f"✅ Query {query_name} carregada de {filename}")
                 except Exception as e:
-                    print(f"❌ Erro ao carregar {filename}: {e}")
+                    if self.verbose:
+                        print(f"❌ Erro ao carregar {filename}: {e}")
             else:
-                print(f"⚠️ Arquivo {filename} não encontrado")
+                if self.verbose:
+                    print(f"⚠️ Arquivo {filename} não encontrado")
 
         return queries
 
@@ -92,7 +97,8 @@ class SimpleDataExtractor:
             engine = create_engine(f"mssql+pyodbc:///?odbc_connect={quoted_conn_str}")
             
             elapsed = time.perf_counter() - start
-            print(f"✅ Conexão com banco de dados estabelecida (⏱️ {elapsed:.2f}s)")
+            if self.verbose:
+                print(f"✅ Conexão com banco de dados estabelecida (⏱️ {elapsed:.2f}s)")
             return engine
             
         except Exception as e:
@@ -130,7 +136,8 @@ class SimpleDataExtractor:
                 query_elapsed = time.perf_counter() - start_query
             
             total_elapsed = time.perf_counter() - start_total
-            print(f"🗄️ Query no DB '{database}' retornou {len(df):,} linhas (execução: {query_elapsed:.2f}s, total: {total_elapsed:.2f}s)")
+            if self.verbose:
+                print(f"🗄️ Query no DB '{database}' retornou {len(df):,} linhas (execução: {query_elapsed:.2f}s, total: {total_elapsed:.2f}s)")
             return df
             
         except Exception as e:
@@ -164,7 +171,8 @@ class SimpleDataExtractor:
         
         custom_query = self.config.get('queries', {}).get('vendas')
                 
-        print(f"💰 Extraindo VENDAS de {database} ({date_start} a {date_end})")
+        if self.verbose:
+            print(f"💰 Extraindo VENDAS de {database} ({date_start} a {date_end})")
         
         # Executar query
         t0 = time.perf_counter()
@@ -181,9 +189,10 @@ class SimpleDataExtractor:
         # Salvar CSV de vendas
         output_file = f"dataset/{database}_vendas.csv"
         df.to_csv(output_file, index=False, sep=separator, encoding=encoding)
-        elapsed = time.perf_counter()
-        print(f"⏱️ Tempo total extração (vendas/{database}): {elapsed:.2f}s")
-        return f"✅ {database} VENDAS: {len(df):,} registros salvos em {output_file} (⏱️ {elapsed:.2f}s)"
+        elapsed_sec = time.perf_counter() - t0
+        elapsed_min = elapsed_sec / 60.0
+        print(f"⏱️ Tempo total extração (vendas/{database}): {elapsed_min:.2f} min")
+        return f"✅ {database} VENDAS: {len(df):,} registros salvos em {output_file} (⏱️ {elapsed_min:.2f} min)"
 
     def extract_volume_data(self, database: str, 
                                 date_start: str = None, 
@@ -217,7 +226,8 @@ class SimpleDataExtractor:
         if not custom_query:
             return f"❌ Query 'volume' não encontrada na configuração"
         
-        print(f"📦📊 Extraindo VOLUME CONSOLIDADO de {database} ({date_start} a {date_end})")
+        if self.verbose:
+            print(f"📦📊 Extraindo VOLUME CONSOLIDADO de {database} ({date_start} a {date_end})")
         
         # Executar query
         t0 = time.perf_counter()
@@ -234,9 +244,10 @@ class SimpleDataExtractor:
         # Salvar CSV de volume consolidado
         output_file = f"dataset/{database}_volume.csv"
         df.to_csv(output_file, index=False, sep=separator, encoding=encoding)
-        elapsed = time.perf_counter()
-        print(f"⏱️ Tempo total extração (volume/{database}): {elapsed:.2f}s")
-        return f"✅ {database} VOLUME: {len(df):,} registros salvos em {output_file} (⏱️ {elapsed:.2f}s)"
+        elapsed_sec = time.perf_counter() - t0
+        elapsed_min = elapsed_sec / 60.0
+        print(f"⏱️ Tempo total extração (volume/{database}): {elapsed_min:.2f} min")
+        return f"✅ {database} VOLUME: {len(df):,} registros salvos em {output_file} (⏱️ {elapsed_min:.2f} min)"
 
     def extract_vendas_empresa_data(self, database: str, 
                                  date_start: str = None, 
@@ -258,7 +269,8 @@ class SimpleDataExtractor:
         if not custom_query:
             return f"❌ Query 'vendas_empresa' não encontrada na configuração"
         
-        print(f"💰📊 Extraindo VENDAS POR EMPRESA de {database} ({date_start} a {date_end})")
+        if self.verbose:
+            print(f"💰📊 Extraindo VENDAS POR EMPRESA de {database} ({date_start} a {date_end})")
         
         # Executar query
         t0 = time.perf_counter()
@@ -275,9 +287,10 @@ class SimpleDataExtractor:
         # Salvar CSV de vendas por empresa
         output_file = f"dataset/{database}_vendas_empresa.csv"
         df.to_csv(output_file, index=False, sep=separator, encoding=encoding)
-        elapsed = time.perf_counter()
-        print(f"⏱️ Tempo total extração (vendas_empresa/{database}): {elapsed:.2f}s")
-        return f"✅ {database} VENDAS GRUPO: {len(df):,} registros salvos em {output_file} (⏱️ {elapsed:.2f}s)"
+        elapsed_sec = time.perf_counter() - t0
+        elapsed_min = elapsed_sec / 60.0
+        print(f"⏱️ Tempo total extração (vendas_empresa/{database}): {elapsed_min:.2f} min")
+        return f"✅ {database} VENDAS GRUPO: {len(df):,} registros salvos em {output_file} (⏱️ {elapsed_min:.2f} min)"
 
 def extract_all_clients(data_type: str = "all"):
     """Função auxiliar para extrair dados de todos os clientes."""
