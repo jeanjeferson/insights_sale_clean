@@ -20,11 +20,11 @@ class SimpleDataExtractor:
 
     def __init__(self, config_file: str = "config/config_databases.yaml"):
         """Inicializa conexão com banco de dados."""
+        # Controla verbosidade de logs internos (queries, conexão, etc.)
+        self.verbose = False
         self.config = self._load_config(config_file)
         self.engine = self._create_engine()
         self._ensure_dataset_dir()
-        # Controla verbosidade de logs internos (queries, conexão, etc.)
-        self.verbose = False
 
     def _load_sql_queries(self) -> dict:
         """Carrega queries dos arquivos SQL da pasta sql/."""
