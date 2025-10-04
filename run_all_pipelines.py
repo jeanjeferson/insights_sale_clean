@@ -138,7 +138,7 @@ def run_single_pipeline(pipeline_name: str):
     """Executa um pipeline específico."""
     pipeline_map = {
         'clientes': extract_all_clients,
-        'volume': run_volume_consolidado_all,
+        # 'volume': run_volume_consolidado_all,
         'vendas': run_vendas_all,
         'empresa': run_vendas_empresa_all
     }

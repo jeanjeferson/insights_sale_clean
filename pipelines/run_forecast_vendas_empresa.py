@@ -260,8 +260,14 @@ class VendasEmpresaForecastPipeline:
             self._log_info(f"Erro ao criar TimeSeries para {empresa}: {e}")
             return None
     
-    def train_model(self, ts: TimeSeries, empresa: str) -> Optional[LightGBMModel]:
-        """Treina modelo LightGBM para uma empresa."""
+    def train_model(self, ts: TimeSeries, empresa: str, use_full_data: bool = False) -> Optional[LightGBMModel]:
+        """Treina modelo LightGBM para uma empresa.
+        
+        Args:
+            ts: TimeSeries com os dados
+            empresa: Nome da empresa
+            use_full_data: Se True, treina com 100% dos dados. Se False, usa 80% para validação.
+        """
         try:
             model_config = self.config.get('model', {})
             
@@ -290,20 +296,28 @@ class VendasEmpresaForecastPipeline:
                     force_col_wise=True
                 )
             
-            # Dividir dados para treino/validação  
-            backtest_config = self.config.get('backtest', {})
-            train_ratio = backtest_config.get('start', 0.8)
-            
-            train_size = int(len(ts) * train_ratio)
-            train_ts = ts[:train_size]
+            # Determinar dados de treino
+            if use_full_data:
+                # Usar 100% dos dados para forecast de produção
+                train_ts = ts
+                self._log_info(f"Treinando modelo final para {empresa} com 100% dos dados ({len(train_ts)} pontos)")
+            else:
+                # Dividir dados para treino/validação (80%)
+                backtest_config = self.config.get('backtest', {})
+                train_ratio = backtest_config.get('start', 0.8)
+                train_size = int(len(ts) * train_ratio)
+                train_ts = ts[:train_size]
+                self._log_info(f"Treinando modelo para validação ({empresa}) com {len(train_ts)} pontos ({train_ratio*100:.0f}%)")
             
             # Treinar modelo com supressão completa de warnings
             with suppress_stdout_stderr():
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     model.fit(train_ts)
-                    
-            self.models[empresa] = model
+            
+            # Armazenar modelo apenas se for para validação
+            if not use_full_data:
+                self.models[empresa] = model
             
             self._log_info(f"✅ Modelo treinado para {empresa} com {len(train_ts)} pontos")
             return model
@@ -457,27 +471,33 @@ class VendasEmpresaForecastPipeline:
                     if ts is None:
                         continue
                     
-                    # Treinar modelo
-                    model = self.train_model(ts, empresa)
-                    if model is None:
+                    # Treinar modelo com 80% dos dados para validação
+                    model_validation = self.train_model(ts, empresa, use_full_data=False)
+                    if model_validation is None:
                         continue
                     
-                    # Gerar forecast
-                    forecast = self.generate_forecast(model, empresa, horizon)
+                    # Calcular métricas de qualidade (usando modelo de validação)
+                    metrics = self.calculate_metrics(ts, empresa)
+                    
+                    # Re-treinar modelo com 100% dos dados para forecast de produção
+                    self._log_info(f"Re-treinando {empresa} com dados completos para forecast final...")
+                    model_final = self.train_model(ts, empresa, use_full_data=True)
+                    if model_final is None:
+                        continue
+                    
+                    # Gerar forecast a partir do último ponto disponível
+                    forecast = self.generate_forecast(model_final, empresa, horizon)
                     if forecast is None:
                         continue
                     
                     # Aplicar transformações inversas
                     forecast_final = self.inverse_transform_forecast(forecast, empresa)
                     
-                    # Calcular métricas de qualidade
-                    metrics = self.calculate_metrics(ts, empresa)
-                    
                     # Armazenar resultado
                     results['forecasts'][empresa] = {
                         'forecast': forecast_final,
                         'original_data': data,
-                        'model': model
+                        'model': model_final
                     }
                     
                     # Armazenar métricas
