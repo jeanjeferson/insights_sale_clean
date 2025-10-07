@@ -193,6 +193,75 @@ class SimpleDataExtractor:
         elapsed_min = elapsed_sec / 60.0
         print(f"⏱️ Tempo total extração (vendas/{database}): {elapsed_min:.2f} min")
         return f"✅ {database} VENDAS: {len(df):,} registros salvos em {output_file} (⏱️ {elapsed_min:.2f} min)"
+    
+    def extract_vendas_data(self, database: str, 
+                          date_start: str = None, 
+                          date_end: str = None,
+                          custom_query: str = None) -> dict:
+        """
+        Extrai dados de vendas e retorna em memória (para uso com InMemoryForecastPipeline).
+        
+        Args:
+            database: Nome do database (ex: '007BE_ERP_BI')
+            date_start: Data início (YYYY-MM-DD)
+            date_end: Data fim (YYYY-MM-DD) 
+            custom_query: Query customizada (opcional)
+        
+        Returns:
+            Dict com success, csv_content, error, etc.
+        """
+        
+        # Datas padrão usando configuração
+        days_back = self.config.get('extraction', {}).get('default_days_back', 730)
+        if not date_start:
+            date_start = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
+        if not date_end:
+            date_end = datetime.now().strftime('%Y-%m-%d')
+        
+        custom_query = self.config.get('queries', {}).get('vendas')
+                
+        if self.verbose:
+            print(f"💰 Extraindo VENDAS de {database} ({date_start} a {date_end})")
+        
+        try:
+            # Executar query
+            t0 = time.perf_counter()
+            params = {"date_start": date_start, "date_end": date_end}
+            df = self._execute_query(database, custom_query, params)
+            
+            if df.empty:
+                return {
+                    'success': False,
+                    'error': f"Nenhum dado de vendas encontrado para {database}",
+                    'csv_content': None
+                }
+            
+            # Configurações de saída
+            separator = self.config.get('extraction', {}).get('separator', ';')
+            encoding = self.config.get('extraction', {}).get('encoding', 'utf-8')
+            
+            # Converter para CSV em memória
+            csv_content = df.to_csv(index=False, sep=separator, encoding=encoding)
+            elapsed_sec = time.perf_counter() - t0
+            elapsed_min = elapsed_sec / 60.0
+            
+            if self.verbose:
+                print(f"⏱️ Tempo total extração (vendas/{database}): {elapsed_min:.2f} min")
+            
+            return {
+                'success': True,
+                # 'csv_content': csv_content,
+                'records_count': len(df),
+                'elapsed_seconds': elapsed_sec,
+                'message': f"✅ {database} VENDAS: {len(df):,} registros extraídos (⏱️ {elapsed_min:.2f} min)"
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'csv_content': None
+            }
 
     def extract_volume_data(self, database: str, 
                                 date_start: str = None, 
@@ -291,6 +360,84 @@ class SimpleDataExtractor:
         elapsed_min = elapsed_sec / 60.0
         print(f"⏱️ Tempo total extração (vendas_empresa/{database}): {elapsed_min:.2f} min")
         return f"✅ {database} VENDAS GRUPO: {len(df):,} registros salvos em {output_file} (⏱️ {elapsed_min:.2f} min)"
+    
+    def extract_vendas_empresa_data(self, database: str, 
+                                 date_start: str = None, 
+                                 date_end: str = None,
+                                 custom_query: str = None) -> dict:
+        """
+        Extrai dados de vendas por empresa e retorna em memória (para uso com InMemoryForecastPipeline).
+        
+        Args:
+            database: Nome do database (ex: '007BE_ERP_BI')
+            date_start: Data início (YYYY-MM-DD)
+            date_end: Data fim (YYYY-MM-DD) 
+            custom_query: Query customizada (opcional)
+        
+        Returns:
+            Dict com success, csv_content, error, etc.
+        """
+        
+        # Datas padrão usando configuração
+        days_back = self.config.get('extraction', {}).get('default_days_back', 730)
+        if not date_start:
+            date_start = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
+        if not date_end:
+            date_end = datetime.now().strftime('%Y-%m-%d')
+        
+        # Query padrão ou customizada
+        if not custom_query:
+            custom_query = self.config.get('queries', {}).get('vendas_empresa')
+        
+        if not custom_query:
+            return {
+                'success': False,
+                'error': "Query 'vendas_empresa' não encontrada na configuração",
+                'csv_content': None
+            }
+        
+        if self.verbose:
+            print(f"💰📊 Extraindo VENDAS POR EMPRESA de {database} ({date_start} a {date_end})")
+        
+        try:
+            # Executar query
+            t0 = time.perf_counter()
+            params = {"date_start": date_start, "date_end": date_end}
+            df = self._execute_query(database, custom_query, params)
+            
+            if df.empty:
+                return {
+                    'success': False,
+                    'error': f"Nenhum dado de vendas por empresa encontrado para {database}",
+                    'csv_content': None
+                }
+            
+            # Configurações de saída
+            separator = self.config.get('extraction', {}).get('separator', ';')
+            encoding = self.config.get('extraction', {}).get('encoding', 'utf-8')
+            
+            # Converter para CSV em memória
+            csv_content = df.to_csv(index=False, sep=separator, encoding=encoding)
+            elapsed_sec = time.perf_counter() - t0
+            elapsed_min = elapsed_sec / 60.0
+            
+            if self.verbose:
+                print(f"⏱️ Tempo total extração (vendas_empresa/{database}): {elapsed_min:.2f} min")
+            
+            return {
+                'success': True,
+                # 'csv_content': csv_content,
+                'records_count': len(df),
+                'elapsed_seconds': elapsed_sec,
+                'message': f"✅ {database} VENDAS GRUPO: {len(df):,} registros extraídos (⏱️ {elapsed_min:.2f} min)"
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'csv_content': None
+            }
 
 def extract_all_clients(data_type: str = "all"):
     """Função auxiliar para extrair dados de todos os clientes."""
@@ -300,14 +447,14 @@ def extract_all_clients(data_type: str = "all"):
     for database_name in databases:
         if data_type == 'vendas':
             results[database_name] = extractor.extract_sales_data(database_name)
-        elif data_type == 'volume':
-            results[database_name] = extractor.extract_volume_data(database_name)
+        # elif data_type == 'volume':
+        #     results[database_name] = extractor.extract_volume_data(database_name)
         elif data_type == 'vendas_empresa':
             results[database_name] = extractor.extract_vendas_empresa_data(database_name)
         elif data_type == 'all':
             results[database_name] = {
                 'vendas': extractor.extract_sales_data(database_name),
-                'volume': extractor.extract_volume_data(database_name),
+                # 'volume': extractor.extract_volume_data(database_name),
                 'vendas_empresa': extractor.extract_vendas_empresa_data(database_name)
             }
     return results

@@ -2,6 +2,10 @@
 """
 Pipeline Unificado - Execução Completa dos Forecasts Essenciais
 Executa os 3 pipelines principais: Volume Consolidado, Vendas e Vendas por Empresa.
+
+OPÇÕES DE EXECUÇÃO:
+1. Modo Tradicional: Salva arquivos localmente e faz upload FTP
+2. Modo Memória: Processa tudo em memória e faz upload único ao final
 """
 
 import time
@@ -20,6 +24,9 @@ from utils.sql_query import extract_all_clients
 from pipelines.run_forecast_vendas import run_all_databases as run_vendas_all
 from pipelines.run_forecast_volume import run_all_databases as run_volume_consolidado_all
 from pipelines.run_forecast_vendas_empresa import run_all_databases as run_vendas_empresa_all
+
+# Importar nova classe em memória
+from pipelines.in_memory_forecast_pipeline import InMemoryForecastPipeline
 
 def format_duration(seconds):
     """Formata duração em formato legível."""
@@ -44,11 +51,11 @@ def main():
             'function': extract_all_clients,
             'emoji': '👥'
         },
-        {
-            'name': 'Volume Consolidado',
-            'function': run_volume_consolidado_all,
-            'emoji': '📦'
-        },
+        # {
+        #     'name': 'Volume Consolidado',
+        #     'function': run_volume_consolidado_all,
+        #     'emoji': '📦'
+        # },
         {
             'name': 'Vendas',
             'function': run_vendas_all,
@@ -134,6 +141,55 @@ def main():
     else:
         sys.exit(0)
 
+def main_in_memory():
+    """Executa todos os pipelines em memória (sem salvamento local)."""
+    print("🚀 EXECUTANDO PIPELINE EM MEMÓRIA")
+    print("==================================")
+    print("💾 Processamento completo em memória - sem arquivos locais")
+    print("📤 Upload único para FTP ao final")
+    print(f"Início: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print()
+    
+    try:
+        # Inicializar pipeline em memória
+        pipeline = InMemoryForecastPipeline()
+        
+        # Executar pipeline completo
+        results = pipeline.run_all_databases()
+        
+        # Resumo da execução
+        print("\n🏆 RESUMO DA EXECUÇÃO EM MEMÓRIA")
+        print("=" * 50)
+        
+        if results['success']:
+            print(f"✅ Sucessos: {results['successful_count']}/{results['total_count']}")
+            print(f"🏢 Empresas processadas: {results['metadata']['total_companies']}")
+            print(f"🎯 Qualidade geral: {results['metadata']['overall_quality']}")
+            
+            # Tempo total
+            if results['metadata']['start_time'] and results['metadata']['end_time']:
+                total_duration = results['metadata']['end_time'] - results['metadata']['start_time']
+                print(f"⏱️ Tempo total: {format_duration(total_duration)}")
+            
+            print(f"📤 Upload FTP: {'✅ Sucesso' if results['success'] else '❌ Falhou'}")
+            
+        else:
+            print("❌ Pipeline falhou")
+            if 'error' in results:
+                print(f"   Erro: {results['error']}")
+        
+        print(f"Fim: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Status de saída
+        if results['success']:
+            sys.exit(0)
+        else:
+            sys.exit(1)
+            
+    except Exception as e:
+        print(f"❌ Erro crítico no pipeline em memória: {e}")
+        sys.exit(1)
+
 def run_single_pipeline(pipeline_name: str):
     """Executa um pipeline específico."""
     pipeline_map = {
@@ -170,9 +226,30 @@ def run_single_pipeline(pipeline_name: str):
 if __name__ == "__main__":
     # Verificar argumentos da linha de comando
     if len(sys.argv) > 1:
-        # Executar pipeline específico
-        pipeline_name = sys.argv[1]
-        run_single_pipeline(pipeline_name)
+        if sys.argv[1] == "--memory" or sys.argv[1] == "-m":
+            # Executar pipeline em memória
+            main_in_memory()
+        elif sys.argv[1] == "--help" or sys.argv[1] == "-h":
+            # Mostrar ajuda
+            print("🚀 PIPELINE UNIFICADO DE FORECASTING")
+            print("=" * 50)
+            print("Uso:")
+            print("  python run_all_pipelines.py              # Modo tradicional (com arquivos locais)")
+            print("  python run_all_pipelines.py --memory     # Modo memória (sem arquivos locais)")
+            print("  python run_all_pipelines.py <pipeline>   # Pipeline específico")
+            print()
+            print("Pipelines disponíveis:")
+            print("  clientes    - Extração de dados de clientes")
+            print("  vendas      - Forecast de vendas")
+            print("  empresa     - Forecast de vendas por empresa")
+            print()
+            print("Modos:")
+            print("  --memory    - Processa tudo em memória e faz upload único para FTP")
+            print("  (padrão)    - Salva arquivos localmente e faz upload individual")
+        else:
+            # Executar pipeline específico
+            pipeline_name = sys.argv[1]
+            run_single_pipeline(pipeline_name)
     else:
-        # Executar todos os pipelines
+        # Executar todos os pipelines (modo tradicional)
         main()
